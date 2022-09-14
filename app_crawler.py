@@ -24,13 +24,15 @@ def get_appinfo(params:dict)->pd.DataFrame:
         res = requests.get("https://steamspy.com/api.php", params).text
         res = json.loads(res)
         
-        if "Software" in res["tags"].keys():continue
+        try:
+            if "Software" in res["tags"].keys():continue
+        except:
+            continue
         
         app_df+=[res]
         
         if len(app_df)>999:break
         
-    app_df = pd.DataFrame(app_df).transpose().reset_index(drop=True)
+    app_df = pd.DataFrame(app_df)
 
     return app_df
-
