@@ -1,7 +1,7 @@
 import pandas as pd
 import datetime
 from selenium import webdriver
-from webdriver_manager.chrome import ChromeDrivermanager
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 
@@ -63,7 +63,9 @@ def get_meta_page(url:str)->pd.DataFrame:
     '''
     메타크리틱 한 페이지당 수집 코드
     '''
-    driver = webdriver.Chrome(service=Service(ChromeDrivermanager().install()))
+    opts = webdriver.ChromeOptions()
+    opts.add_argument('headless')
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opts)
     
     class_list = ["name",
           "date",
