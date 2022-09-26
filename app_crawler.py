@@ -1,11 +1,34 @@
 import pandas as pd
 import requests
 import json
+import datetime
 from bs4 import BeautifulSoup
-import time
+#import time
 
 #Steam store game infos by Steamspy API
 #Check param infos in https://steamspy.com/api.php 
+
+def get_recent_revdate(id:int)->int:
+    '''
+    return a timestamp minus the date of 20th review written from the present
+    '''
+    
+    url = f"https://store.steampowered.com/appreviews/{id}?json=1"
+    params = {"filter":"recent",
+          "language":"english",
+          "cursor":"*",
+          "review_type":"all",
+          "purchase_type":"all",
+          "num_per_page":"20" # 100?
+        }
+    res = requests.get(url, params=params)
+    res.encoding = 'utf-8-sig'
+    res = json.loads(res.text) 
+    
+    diff = datetime.datetime.now().timestamp() - res["reviews"][-1]['timestamp_created']
+    return diff
+
+
 
 def get_appinfo(params:dict)->pd.DataFrame:  
     
@@ -45,6 +68,7 @@ def get_appinfo(params:dict)->pd.DataFrame:
         
         app["tags"] = [r.text.strip() for r in soup.find_all(class_='app_tag')][:-1]
         if "Software" in app["tags"]:
+                app["why_banned"] = "Not game"
                 ispass=1
             
         
@@ -55,6 +79,7 @@ def get_appinfo(params:dict)->pd.DataFrame:
             
         app["counts_rv_eng"] = int(counts_rv_eng)
         if app["counts_rv_eng"]<2500:
+            app["why_banned"] = "Lack of eng reviews"
             ispass = 1
         
         #get peak players in steamcharts.com
@@ -70,12 +95,18 @@ def get_appinfo(params:dict)->pd.DataFrame:
         #f2p multiplayer game/low 24 peeks may means that game is no longer to can play nomally 
         app["24h_peak"] = int(soup.find_all("span", class_="num")[1].text)
         if app["24h_peak"]<30:
+            app["why_banned"] = "Too low players"
             ispass = 1
         elif "Free to Play" in app["tags"] and "Multiplayer" in app["tags"] and app["24h_peak"]<300:
+            app["why_banned"] = "PvP no longer works"
             ispass = 1
-            
         
+        #stats of constantly played: is there any recent reviews?
+        if get_recent_revdate(app["appid"]) > 2592000:
+            app["why_banned"] = "Recent review too old"
+            ispass = 1
         
+        #make blacklist
         if ispass:passed_df+=[app]
         else: 
             app_df+=[app]
