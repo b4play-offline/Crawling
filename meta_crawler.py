@@ -7,17 +7,18 @@ from selenium.webdriver.chrome.service import Service
 
 import time
 
-def get_meta_rev(appname_list:list, stop_time:int = 0) ->pd.DataFrame:
+def get_meta_rev(app_dict:list, stop_time:int = 0) ->pd.DataFrame:
     '''
     메타크리틱 '유저' 리뷰 수집 코드
     
     Args: 
-        appname_list : 게임 이름 리스트
+        app_dict: 게임 id & 이름 딕셔너리
         stop_time: 리뷰의 수집 일자를 제한하는 Timestamp 형식의 시간입니다.
         
     Return: 
         result: 메타크리틱 리뷰 데이터프레임    
             ===================================================
+            appid: 게임 id
             name: 게임 이름
             user: 유저 닉네임
             date: 리뷰 작성 날짜
@@ -31,7 +32,7 @@ def get_meta_rev(appname_list:list, stop_time:int = 0) ->pd.DataFrame:
     특징: 리뷰를 쓰러 온 유저만 있음(뻘글x), 게임을 해봐야 리뷰를 적을 수 있는 건 아님
     '''
     result = pd.DataFrame()
-    for app in appname_list:
+    for app in app_dict.values():
         result_app = pd.DataFrame()
         app_url = app.lower().replace(' ', '-') #요구 url에 맞게 변형
         i=0
@@ -56,6 +57,7 @@ def get_meta_rev(appname_list:list, stop_time:int = 0) ->pd.DataFrame:
         
         result_app = pd.DataFrame(result_app)
         result_app.insert(0, "name", app)
+        result_app.insert(0, "appid", app_dict[app]) #임시 - 돌아가면 좋겠다..
         result = pd.concat([result, result_app])
     return result
 
