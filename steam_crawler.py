@@ -3,14 +3,63 @@ import requests
 import json
 import time
 
-def get_steam_rev(app_list:list, stop_time:int = 0)->tuple[pd.DataFrame, pd.DataFrame]:
+def split_applist(app_dict:dict)->dict:
+  '''
+  Split steam applist by day query limit(100,000)
+  In just case, split at 99000 query.
+  
+  Input:
+    app_dict: dict of all appids.
+  
+  Output:
+    sum_list: list of splited appid dict.
+  '''
+  
+  rv_lim = 0
+  sum_list = [] 
+  splited_list = []  
+  
+  for k, v in app_dict.items():
+    url = f"https://store.steampowered.com/appreviews/{k}?json=1"
+    params = {"filter":"recent",
+              "language":"english",
+              "cursor":"*",
+              "review_type":"all",
+              "purchase_type":"all",
+              "num_per_page":"1"
+            }
+    res = requests.get(url, params=params)
+    res.encoding = 'utf-8-sig'
+    res = json.loads(res.text)
+    
+    tot_rv = res['query_summary']['total_reviews']
+    tot_rv = (tot_rv//100)+int(bool(tot_rv))
+    
+    if rv_lim+tot_rv>99499:
+      sum_list.append(splited_list)
+      splited_list = []
+      rv_lim = tot_rv
+    
+    rv_lim+=tot_rv
+    splited_list.append({k:v})
+    
+  if len(splited_list):
+    sum_list.append(splited_list)
+      
+  return sum_list
+
+
+
+def get_steam_rev(app_dict:dict, stop_time:int = 0)->tuple[pd.DataFrame, pd.DataFrame]:
     '''
+    #팀원 설명을 위해 한글로 작성함.
+    
     스팀 API 활용 리뷰 수집 코드!!
 
     사용한 방법: steamworks api, 하루 최대 1000만 건, 시간당 약 120만건 수집 가능(0.5 query/s)
 
     Input:
-        app_list: 수집할 게임의 id 리스트입니다.
+        app_dict: 수집할 게임의 id와 이름으로 이루어진 리스트입니다.
         stop_time: 리뷰의 수집 일자를 제한하는 Timestamp 형식의 시간입니다.
 
     Output:
@@ -48,69 +97,75 @@ def get_steam_rev(app_list:list, stop_time:int = 0)->tuple[pd.DataFrame, pd.Data
           =========================================================================
     '''
 
-
-
     rev_df_all = pd.DataFrame()
     #daylim = 0
-    for app in app_list:    #crwal all game in list
-        url = f"https://store.steampowered.com/appreviews/{app}?json=1"
-        params = {"filter":"recent",
-                "language":"english",
-                "cursor":"*",
-                "review_type":"all",
-                "purchase_type":"all",
-                "num_per_page":"100"
-              }
-        revs = []
-        summaries = []
-        n_rv = 200
-
-        while n_rv!=0:
-          n_rv_prev = n_rv
-          for tr in range(5): #if error, retry
+    for app in app_dict.keys():    #crwal all game in list
+      url = f"https://store.steampowered.com/appreviews/{app}?json=1"
+      params = {"filter":"recent",
+              "language":"english",
+              "cursor":"*",
+              "review_type":"all",
+              "purchase_type":"all",
+              "num_per_page":"100"
+            }
+      revs = []
+      summaries = []
+      n_rv = 200
+      tot_rv = 200
+      
+      while n_rv!=0:
+        try:
+          for tr in range(1,6): #if error, retry
             res = requests.get(url, params=params)
             res.encoding = 'utf-8-sig'
             res = json.loads(res.text) 
-            
+     #       daylim+=1
             n_rv = res['query_summary']['num_reviews']
-            if not res['success']:
-              print("connect Failed:")
-              err_input = input() #failue
+            
+            
+            if not res['success']:  #failue
+              print(f"api conect Failed: {tr}")
+              time.sleep(tr*tr*5) 
             elif params["cursor"]=='*' and n_rv==0: 
-              print("load Failed:")
-              err_input = input()
-            elif n_rv_prev!=100 and n_rv==0:
-              print(f"API went wrong. rtry after {tr*tr*5}sec.")
+              print(f"load Failed: {tr}")
+              time.sleep(tr*tr*5)
+            elif len(revs)<tot_rv-100 and n_rv==0: #100 = accepted error
+              print(f"API went wrong. rtry after {tr*tr*5} sec.")
               time.sleep(tr*tr*5)
             else:break
-            
-          if tr==5:
+
+          if tr==5: #prevent reset
             exmsg = input("exit process and save?")
             if exmsg == "1":break
           
-            
-          #파라미터 착각. 다시 조정할 필요 있음
-          #if not res['query_summary']['num_reviews'] == 100: print(str(app)+": done")
-        
           if params['cursor']=='*': 
                 isum = {"app_id":app}
                 isum.update(res['query_summary']) #get summary
                 summaries += [sum]
-
-          revs += res['reviews'] #get reviews
-
-
-          if n_rv and res['reviews'][-1]['timestamp_created'] <stop_time : break #outdated
-
-          params['cursor'] = res['cursor']
+                
+          #daylimit autocalced.
           
+          #      tot_rv = res["query_summary"]['total_reviews'] #day limit calc and escape
+          #      if (tot_rv//100)+int(bool(tot_rv%100))+daylim>98999:
+          #        break
+                
+          revs += res['reviews'] #get reviews
+          if n_rv and res['reviews'][-1]['timestamp_created'] <stop_time : break #outdated
+          params['cursor'] = res['cursor']
+        
+        except: #if net err, handle yourself and insert any key
+          print("network error: wait until input")
+          input()  
+        
+      if len(revs):  
         rev_df = pd.DataFrame(revs)
         rev_df = rev_df[rev_df.timestamp_created>=stop_time] #kill outdated
-        rev_df.insert(0, "app_id", app) #insert game id
+        
+        rev_df.insert(0, "appid", app) #insert game id
+        rev_df.insert(1, "name", app_dict[app]) #insert game name
+        
         print(f"app {app}: Done! loaded Reviews: {len(rev_df)}")  
         rev_df_all = pd.concat([rev_df_all, rev_df]) 
-        
-
     summaries_df = pd.DataFrame(summaries)
     return summaries_df, rev_df_all 
 
