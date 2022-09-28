@@ -8,8 +8,8 @@ def main():
     
     test_summary, test_df = get_steam_rev(game_df["appid"][0:100], 0)
     
-    test_summary.to_csv("1_100_summary.csv")
-    test_df.to_csv("1_100_review.csv")
+    test_summary.to_csv("1_100_summary.csv", index=False)
+    test_df.to_csv("1_100_review.csv", index=False)
 
 if __name__=="__main__":
     main()
