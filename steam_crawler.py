@@ -135,13 +135,13 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0)->tuple[pd.DataFrame, pd.Data
             else:break
 
           if tr==5: #prevent reset
-            exmsg = input("exit process and save?")
-            if exmsg == "1":break
+              exmsg = input("exit process and save?")
+              if exmsg == "1":break
           
           if params['cursor']=='*': 
-                isum = {"app_id":app}
-                isum.update(res['query_summary']) #get summary
-                summaries += [sum]
+              isum = {"app_id":app, "name":app_dict[app]}
+              isum.update(res['query_summary']) #get summary
+              summaries += [isum]
                 
           #daylimit autocalced.
           
