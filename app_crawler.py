@@ -125,8 +125,8 @@ def get_appinfo(params:dict)->pd.DataFrame:
 #test code  
 if __name__=="__main__":
     app_list, passed_list = get_appinfo({"request":"all"})
-    app_list.to_csv("games_list.csv")
-    passed_list.to_csv("games_list_passed.csv")
+    app_list.to_csv("games_list.csv", index=False)
+    passed_list.to_csv("games_list_passed.csv", index=False)
     
     
 #1000위 계산 기준: 판매량 순
