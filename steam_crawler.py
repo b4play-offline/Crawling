@@ -99,6 +99,7 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0)->tuple[pd.DataFrame, pd.Data
 
     rev_df_all = pd.DataFrame()
     #daylim = 0
+    summaries = []
     for app in app_dict.keys():    #crwal all game in list
       url = f"https://store.steampowered.com/appreviews/{app}?json=1"
       params = {"filter":"recent",
@@ -109,7 +110,7 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0)->tuple[pd.DataFrame, pd.Data
               "num_per_page":"100"
             }
       revs = []
-      summaries = []
+
       n_rv = 200
       tot_rv = 200
       
