@@ -1,91 +1,91 @@
 # Steam Review 부분 컬럼들 추가 설명  
 
-## recommendationid: 리뷰의 고유 id
+### recommendationid: 리뷰의 고유 id
 |타입|사용처|
 |:---|:-----|
 |str|고유성 만족|
 
-## author: 리뷰 작성자에 대한 정보 (플레이타임 등)
+### author: 리뷰 작성자에 대한 정보 (플레이타임 등)
 |타입|사용처|
 |:---|:-----|
 |str(dict)|리뷰 작성자에 관련된 메타정보 포함-https://partner.steamgames.com/doc/store/getreviews?l=koreana 참조|
 
-## language: 작성된 리뷰의 언어
+### language: 작성된 리뷰의 언어
 |타입|사용처|
 |:---|:-----|
 |str|모두 english여야 함|
 
-## review: 리뷰 본문
+### review: 리뷰 본문
 |타입|사용처|
 |:---|-----|
 |str|-|
 
-## timestamp_created: 리뷰 작성 시각(unix Timestamp)
+### timestamp_created: 리뷰 작성 시각(unix Timestamp)
 |타입|사용처|
 |:---|:-----|
 |int|일일 크롤링 갱신에 사용|
 
-## timestamp_updated: 리뷰 최종 수정 시각
+### timestamp_updated: 리뷰 최종 수정 시각
 |타입|사용처|
 |:---|:-----|
 |int|현재 특별한 사용처는 없음|
 
-## voted_up: True일 시, 긍정 평가
+### voted_up: True일 시, 긍정 평가
 |타입|사용처|
 |:---|:-----|
 |bool|긍/부정 여부고, 아래의 컬럼과는 별개|
 
-## votes_up: 유저들에게서 받은 추천수
+### votes_up: 유저들에게서 받은 추천수
 |타입|사용처|
 |:---|:-----|
 |int|'유용함'평가를 받은 갯수. 안 받은 리뷰가 훨씬 많을 것으로 예상|
 
-## votes_funny: 유저들에게서 받은 "재미있음" 수
+### votes_funny: 유저들에게서 받은 "재미있음" 수
 |타입|사용처|
 |:---|:-----|
 |int|__2015년에 추가된__ '재미있음'평가를 받은 갯수. 드립 리뷰 판별에 사용할 수 있지만 애초에 잘 안 누르는 경향이 있으므로 손실 클 것|
 
-## weighted_vote_score: 스팀에서 평가한 리뷰의 "유용함" 지표
+### weighted_vote_score: 스팀에서 평가한 리뷰의 "유용함" 지표
 |타입|사용처|
 |:---|:-----|
 |float|스팀에서 자체 평가한 리뷰의 유용도.(기준 불명) 이게 높으면 메인페이지 리뷰에 뜨는 것으로 추정|
 
-## comment_count: 달린 댓글의 수
+### comment_count: 달린 댓글의 수
 |타입|사용처|
 |:---|:-----|
 |int|리뷰 작성시 default는 댓글 금지이므로 참고할 것.|
 
-## steam_purchase: True일 시, 작성자의 게임은 스팀 직접 구매입니다.(False는 선물 혹은 CD키 구매입니다)
+### steam_purchase: True일 시, 작성자의 게임은 스팀 직접 구매입니다.(False는 선물 혹은 CD키 구매입니다)
 |타입|사용처|
 |:---|:-----|
 |bool|활용법에 대한 정보 없음.|
 
-## received_for_free: True일 시, 작성자의 게임은 'Steam 선물'을 통해 받은 게임입니다.
+### received_for_free: True일 시, 작성자의 게임은 'Steam 선물'을 통해 받은 게임입니다.
 |타입|사용처|
 |:---|:-----|
 |bool|활용법에 대한 정보 없음. 위 컬럼과 어느정도 겹침.|
 
-## written_during_early_access: True일 시, 게임의 '앞서 해보기' 기간동안 작성된 리뷰입니다. '앞서 해보기'란 일종의 유료 베타를 의미합니다.
+### written_during_early_access: True일 시, 게임의 '앞서 해보기' 기간동안 작성된 리뷰입니다. '앞서 해보기'란 일종의 유료 베타를 의미합니다.
 |타입|사용처|
 |:---|:-----|
 |bool|얼리엑세스 전후의 반응 비교나 업데이트 얼엑게임 성실도를 평가하는데 활용 가능|
 
-## hidden_in_steam_china: True일 시, 중국에서 금지된 게임입니다.
+### hidden_in_steam_china: True일 시, 중국에서 금지된 게임입니다.
 |타입|사용처|
 |:---|:-----|
 |bool|중국 스팀 런칭 이후 추가된 컬럼|
 
-## steam_china_location: api 설명 없음. 정확한 정보가 없습니다.
+### steam_china_location: api 설명 없음. 정확한 정보가 없습니다.
 |타입|사용처|
 |:---|:-----|
 |float|위 컬럼이 False일 시 NaN|
 
-## timestamp_dev_responded: 개발자의 답변이 달린 시각
+### timestamp_dev_responded: 개발자의 답변이 달린 시각
 |타입|사용처|
 |:---|:-----|
 |float|개발자의 답변은 일반 댓글과 별개로 취급됨. 왜 float형인지 조사 필요. 없으면 NaN|
 
-## developer_response: 개발자의 답변 본문
+### developer_response: 개발자의 답변 본문
 |타입|사용처|
 |:---|:-----|
 |string|보통 영어로 달리는 개발자의 답변. 없으면 NaN|
