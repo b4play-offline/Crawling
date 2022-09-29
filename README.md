@@ -37,7 +37,7 @@ __크롤링 코드 작성__
     
   현재 발생한 에러: 네트워크 에러, api 에러. 최대 25초까지 대기 후 재시도하여 해결 중  
   로그 대신 print로 에러 출력 중  
-  초기 대량 데이터 추출 완료. https://drive.google.com/drive/folders/1NfKhoZq4F7QOqJMBPeknXbhYPYzFsWZV?usp=sharing 에 배포됨
+  초기 대량 데이터 추출 완료. 동유 드라이브에 배포됨
  
  - 메타크리틱-유저(완성)  
    셀레니움 기반 크롤링 사용(메타크리틱은 동적 페이지를 활용함)
