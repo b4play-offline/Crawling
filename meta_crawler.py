@@ -31,6 +31,7 @@ def get_meta_rev(app_dict:list, stop_time:int = 0) ->pd.DataFrame:
     문제: 유저 리뷰만 수집 중, 언어 필터가 없음, pc 리뷰만 수집 중, 에러 대처 안했음
     특징: 리뷰를 쓰러 온 유저만 있음(뻘글x), 게임을 해봐야 리뷰를 적을 수 있는 건 아님
     '''
+    
     result = pd.DataFrame()
     for app in app_dict.values():
         result_app = pd.DataFrame()
@@ -71,7 +72,7 @@ def get_meta_page(url:str)->pd.DataFrame:
     
     class_list = ["name",
           "date",
-          "review_body",
+          "blurb_expanded",
           "metascore_w",
           "total_ups",
           "total_thumbs",]
@@ -88,10 +89,6 @@ def get_meta_page(url:str)->pd.DataFrame:
         
     endchk = revs.find_element(by = By.CLASS_NAME, value="review_top_l").text #페이지 유효 체크
     if endchk[:25] == "There are no user reviews":return False
-    
-    btns = driver.find_elements(by=By.CLASS_NAME, value="toggle_expand") #리뷰 확장버튼 클릭
-    for btn in btns:
-        btn.click()
         
     revs = revs.find_elements(by = By.CLASS_NAME, value="review_top_l") #이후 리뷰데이터 수집
 
