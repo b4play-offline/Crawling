@@ -2,7 +2,10 @@ import pandas as pd
 import requests
 import json
 import time
+import logging
 from datetime import datetime
+
+
 
 def split_applist(app_dict:dict)->dict:
   '''
@@ -61,7 +64,9 @@ def get_query(url:str, params:dict, is_end:bool=False):
   Output:
     res: result of query
   '''
-  for tr in range(1,6): #if error, retry
+  printer = logging.getLogger("Steam_console")
+  logger = logging.getLogger("Steam_console")
+  for tr in range(1,7): #if error, retry
     res = requests.get(url, params=params)
     res.encoding = 'utf-8-sig'
     res = json.loads(res.text) 
@@ -69,59 +74,49 @@ def get_query(url:str, params:dict, is_end:bool=False):
     n_rv = res['query_summary']['num_reviews']
     
     if not res['success']:  
-      print(f"api conect Failed: {tr}")
-      time.sleep(tr*tr*5) 
+      logger.warning(f"Api conect Failed x{tr}")
     elif params["cursor"]=='*' and n_rv==0: 
-      print(f"load Failed: {tr}")
-      time.sleep(tr*tr*5)
+      logger.warning(f"Wrong app id x{tr}")
     elif not is_end and n_rv==0: #200 = accepted error
-      print(f"API went wrong. rtry after {tr*tr*5} sec.")
-      time.sleep(tr*tr*5)
+      logger.warning(f"Unexpected endpoint x{tr}")
     else:
       res['success'] = True
-      return res 
+      return res
+    printer(f"Loading Error, wait until {tr*tr*5} sec.")
+    time.sleep(tr*tr*5)
+    if tr==6:
+      logger.warning(f"Retrying failed and Sleep")
+      printer.warning(f"Retrying failed and Sleep 30 min")
+      time.sleep(3600)
+  logger.error(f"Query {params['cursor']} Failed.") 
+  printer.error(f"Query {params['cursor']} Failed.") 
   res['success'] = False
   return res
 
 def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"{int(datetime.now().timestamp())}_Steamrev")->tuple[pd.DataFrame, pd.DataFrame]:
   '''
-  #팀원 설명을 위해 한글로 작성함.
+  Collect Steam reviews by using steamapi. 10m rev per day, 1.2m rev per hour(0.5 query/s)
   
-  스팀 API 활용 리뷰 수집 코드!!
-  사용한 방법: steamworks api, 하루 최대 1000만 건, 시간당 약 120만건 수집 가능(0.5 query/s)
   Input:
-      app_dict: 수집할 게임의 id와 이름으로 이루어진 리스트입니다.
-      stop_time: 리뷰의 수집 일자를 제한하는 Timestamp 형식의 시간입니다.
-      filename: 저장할 파일의 이름입니다.
+      app_dict: Dict made of game id and name.
+      stop_time: Timestamp time that set scrap limit.
+      filename: Name of saving file.
   Output:
-      sumaries_df: 수집한 게임별 리뷰 통계입니다.
-        ========================================================================
-        num_reviews: 리뷰의 쿼리 당 수집량
-        review_score: 수집한 리뷰들의 긍정평가 비율
-        review_score_desc: 스팀에서 표시되는 평가 텍스트(예시: 대체로 긍정적)
-        total_positive: 긍정적 평가의 수
-        total_negative: 부정적 평가의 수
-        total_reviews: 수집된 리뷰의 총량
-        =========================================================================
-      rev_df_all: 수집한 게임들의 리뷰들 Dataframe입니다.
-        =========================================================================
-        recommendationid: 리뷰의 고유 id
-        author: 리뷰 작성자에 대한 정보 (플레이타임 등)
-        language: 작성된 리뷰의 언어
-        review: 리뷰 본문
-        timestamp_created: 리뷰 작성 시각(unix Timestamp)
-        timestamp_updated: 리뷰 최종 수정 시각
-        voted_up: True일 시, 긍정 평가
-        votes_up: 유저들에게서 받은 추천수
-        votes_funny: 유저들에게서 받은 "재미있음" 수
-        weighted_vote_score: 스팀에서 평가한 리뷰의 "유용함" 지표
-        comment_count: 달린 댓글의 수
-        steam_purchase: True일 시, 작성자의 게임은 스팀 직접 구매입니다.(False는 선물 혹은 CD키 구매입니다)
-        received_for_free: True일 시, 작성자의 게임은 'Steam 선물'을 통해 받은 게임입니다.
-        written_during_early_access: True일 시, 게임의 '앞서 해보기' 기간동안 작성된 리뷰입니다. '앞서 해보기'란 일종의 유료 베타를 의미합니다.
-        hidden_in_steam_china: True일 시, 중국에서 금지된 게임입니다.
-        =========================================================================
+      none(save review and summary as filename.csv)
+      check collected columns info at https://partner.steamgames.com/doc/store/getreviews  
   '''
+  logger = logging.getLogger("Steam_file")
+  printer = logging.getLogger("Steam_console")
+  formatter = logging.Formatter('[%(asctime)s][%(levelname)s|%(funcname)s:%(lineno)s] >> %(message)s')
+  
+  filehandler = logging.FileHandler(f"./{datetime.now().strftime('%y-%m-%d')}_Steamlog")
+  streamhandler = logging.StreamHandler()
+  filehandler.setFormatter(formatter)
+
+  logger.addHandler(filehandler)
+  printer.addHandler(streamhandler)
+  printer.propagate=False
+  
   summaries = []
   for app in app_dict.keys():    #crwal all game in list
     url = f"https://store.steampowered.com/appreviews/{app}?json=1"
@@ -156,10 +151,13 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"{int(dateti
         if n_rv and res['reviews'][-1]['timestamp_created'] <stop_time : n_rv=0 #outdated
         params['cursor'] = res['cursor']
       
-      except: #if net err, handle yourself and insert any key
-        print("network error: wait until input")
-        input()  
-      
+      except ConnectionError: #if net err, handle yourself and insert any key
+        logger.critical("Network Connections Lost")
+        input("Net error: restore connections and press any key ")  
+      except BaseException as e:
+        logger.critical(f"Unknown Error {type(e)} occured: {e}")
+        printer.critical(f"{type(e)}: {e}")
+        time.sleep(3000)
     if len(revs):  
       rev_df = pd.DataFrame(revs)
       rev_df = rev_df[rev_df.timestamp_created>=stop_time] #kill outdated
@@ -167,8 +165,11 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"{int(dateti
       rev_df.insert(0, "appid", app) 
       rev_df.insert(1, "name", app_dict[app]) 
       rev_df.to_csv(f"{filename}.csv",index=False,mode='a')
-      print(f"app {app}: Done! loaded Reviews: {len(rev_df)}")  
+      
+      logger.info(f"APP {app} Done, {len(revs)} of {tot_rv} loaded.")
+      printer.info(f"APP {app} Done, {len(revs)} of {tot_rv} loaded.")
        
   summaries_df = pd.DataFrame(summaries)
   summaries_df.to_csv(f"{filename}_summary.csv",index=False,mode='a')
-  return True #임시, 로그파일 반환?
+  logger.info("Scrapping Compleated")
+  return True #임시, 로그파일 반환? 
