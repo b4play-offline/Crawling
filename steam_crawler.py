@@ -2,11 +2,12 @@ import pandas as pd
 import requests
 import json
 import time
+from datetime import datetime
 
 def split_applist(app_dict:dict)->dict:
   '''
   Split steam applist by day query limit(100,000)
-  In just case, split at 99000 query.
+  In just case, split at 99500 query.
   
   Input:
     app_dict: dict of all appids.
@@ -35,7 +36,7 @@ def split_applist(app_dict:dict)->dict:
     tot_rv = res['query_summary']['total_reviews']
     tot_rv = (tot_rv//100)+int(bool(tot_rv))
     
-    if rv_lim+tot_rv>99499:
+    if rv_lim+tot_rv>99499: #500 = margin
       sum_list.append(splited_list)
       splited_list = []
       rv_lim = tot_rv
@@ -49,26 +50,40 @@ def split_applist(app_dict:dict)->dict:
   return sum_list
 
 def get_query(url:str, params:dict, is_end:bool=False):
+  '''
+  get query data from api
+  
+  Input:
+    url: steamapi url
+    params: steamapi parameter
+    is_end: crawling progress of current game
+    
+  Output:
+    res: result of query
+  '''
   for tr in range(1,6): #if error, retry
     res = requests.get(url, params=params)
     res.encoding = 'utf-8-sig'
     res = json.loads(res.text) 
-    #daylim+=1
-    n_rv = res['query_summary']['num_reviews']#here부터
     
-    if not res['success']:  #failue
+    n_rv = res['query_summary']['num_reviews']
+    
+    if not res['success']:  
       print(f"api conect Failed: {tr}")
       time.sleep(tr*tr*5) 
     elif params["cursor"]=='*' and n_rv==0: 
       print(f"load Failed: {tr}")
       time.sleep(tr*tr*5)
-    elif is_end and n_rv==0: #100 = accepted error
+    elif not is_end and n_rv==0: #200 = accepted error
       print(f"API went wrong. rtry after {tr*tr*5} sec.")
       time.sleep(tr*tr*5)
-    else:return res
-          
+    else:
+      res['success'] = True
+      return res 
+  res['success'] = False
+  return res
 
-def get_steam_rev(app_dict:dict, stop_time:int = 0)->tuple[pd.DataFrame, pd.DataFrame]:
+def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"{int(datetime.now().timestamp())}_Steamrev")->tuple[pd.DataFrame, pd.DataFrame]:
   '''
   #팀원 설명을 위해 한글로 작성함.
   
@@ -77,6 +92,7 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0)->tuple[pd.DataFrame, pd.Data
   Input:
       app_dict: 수집할 게임의 id와 이름으로 이루어진 리스트입니다.
       stop_time: 리뷰의 수집 일자를 제한하는 Timestamp 형식의 시간입니다.
+      filename: 저장할 파일의 이름입니다.
   Output:
       sumaries_df: 수집한 게임별 리뷰 통계입니다.
         ========================================================================
@@ -106,7 +122,6 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0)->tuple[pd.DataFrame, pd.Data
         hidden_in_steam_china: True일 시, 중국에서 금지된 게임입니다.
         =========================================================================
   '''
-  rev_df_all = pd.DataFrame()
   summaries = []
   for app in app_dict.keys():    #crwal all game in list
     url = f"https://store.steampowered.com/appreviews/{app}?json=1"
@@ -118,47 +133,27 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0)->tuple[pd.DataFrame, pd.Data
             "num_per_page":"100"
           }
     revs = []
-    n_rv = 200
-    tot_rv = 200
+    n_rv = 400
+    tot_rv = 400
     
     while n_rv!=0:
       try:
+        naive_endchk = bool(len(revs)>=tot_rv-200)
+        res = get_query(url, params, naive_endchk)
+        n_rv = res['query_summary']['num_reviews']
         
-        naive_endchk = bool(len(revs)<tot_rv-100)
-        for tr in range(1,6): #if error, retry
-          res = requests.get(url, params=params)
-          res.encoding = 'utf-8-sig'
-          res = json.loads(res.text) 
-          n_rv = res['query_summary']['num_reviews']
-        
-          if not res['success']:  #failue
-            print(f"api conect Failed: {tr}")
-            time.sleep(tr*tr*5) 
-          elif params["cursor"]=='*' and n_rv==0: 
-            print(f"load Failed: {tr}")
-            time.sleep(tr*tr*5)
-          elif len(revs)<tot_rv-100 and n_rv==0: #100 = accepted error
-            print(f"API went wrong. rtry after {tr*tr*5} sec.")
-            time.sleep(tr*tr*5)
-          else:break
-        if tr==5: #prevent reset
+        if not res['success']: #prevent reset
             exmsg = input("exit process and save?")
-            if exmsg == "1":break
+            if exmsg == "1":n_rv=0
         
         if params['cursor']=='*': 
             isum = {"app_id":app, "name":app_dict[app]}
-            isum.update(res['query_summary']) #get summary
+            isum.update(res['query_summary']) 
             summaries += [isum]
             tot_rv = res["query_summary"]['total_reviews']
-        #daylimit autocalced.
-        
-        #       
-        #      #day limit calc and escape
-        #      if (tot_rv//100)+int(bool(tot_rv%100))+daylim>98999:
-        #        break
               
-        revs += res['reviews'] #get reviews
-        if n_rv and res['reviews'][-1]['timestamp_created'] <stop_time : break #outdated
+        revs += res['reviews'] 
+        if n_rv and res['reviews'][-1]['timestamp_created'] <stop_time : n_rv=0 #outdated
         params['cursor'] = res['cursor']
       
       except: #if net err, handle yourself and insert any key
@@ -169,10 +164,11 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0)->tuple[pd.DataFrame, pd.Data
       rev_df = pd.DataFrame(revs)
       rev_df = rev_df[rev_df.timestamp_created>=stop_time] #kill outdated
       
-      rev_df.insert(0, "appid", app) #insert game id
-      rev_df.insert(1, "name", app_dict[app]) #insert game name
-      
+      rev_df.insert(0, "appid", app) 
+      rev_df.insert(1, "name", app_dict[app]) 
+      rev_df.to_csv(f"{filename}.csv",index=False,mode='a')
       print(f"app {app}: Done! loaded Reviews: {len(rev_df)}")  
-      rev_df_all = pd.concat([rev_df_all, rev_df]) 
+       
   summaries_df = pd.DataFrame(summaries)
-  return summaries_df, rev_df_all 
+  summaries_df.to_csv(f"{filename}_summary.csv",index=False,mode='a')
+  return True #임시, 로그파일 반환?
