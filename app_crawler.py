@@ -12,7 +12,7 @@ def get_recent_revdate(id:int)->int:
     '''
     return a timestamp minus the date of 20th review written from the present
     '''
-    
+
     url = f"https://store.steampowered.com/appreviews/{id}?json=1"
     params = {"filter":"recent",
           "language":"english",
@@ -24,7 +24,7 @@ def get_recent_revdate(id:int)->int:
     res = requests.get(url, params=params)
     res.encoding = 'utf-8-sig'
     res = json.loads(res.text) 
-    
+
     diff = datetime.datetime.now().timestamp() - res["reviews"][-1]['timestamp_created']
     return diff
 
@@ -33,36 +33,35 @@ def is_valid(app:dict):
     '''
     Validation that games are analysis worthy.    
     Checking list: Amount of English reviews, 24H player peak, Recent review date
-    
+
     Input:
         app: dict of game data received by steamspy API.
-        
+
     Output:
         bool: result of validation. True is Okay.
         app: dict of game data inclued Evaluation standard
     '''
-    
+
     #get tags in steam store page
     url = f"https://store.steampowered.com/app/{app['appid']}/?l=english"
     html = requests.get(url).text
     soup = BeautifulSoup(html, 'html.parser')
-    
+
     app["tags"] = [r.text.strip() for r in soup.find_all(class_='app_tag')][:-1]
     if "Software" in app["tags"]:
             app["why_banned"] = "Not game"
             return False, app
-        
-    
+
     #eng-review counts(if needs)
     counts_rv_eng = soup.find_all(class_="user_reviews_count")[-1].text
     for c in ["(", ")", ","]:
         counts_rv_eng = counts_rv_eng.replace(c,"")
-        
+
     app["counts_rv_eng"] = int(counts_rv_eng)
     if app["counts_rv_eng"]<2500:
         app["why_banned"] = "Lack of eng reviews"
         return False, app
-    
+
     #get peak players in steamcharts.com
     url = f"https://steamcharts.com/app/{app['appid']}/"
     html = requests.get(url).text
@@ -91,7 +90,7 @@ def is_valid(app:dict):
 
     
 
-def get_appinfo(params:dict)->pd.DataFrame:  
+def get_appinfo(params:dict = {"request":"all"})->pd.DataFrame:  
     
     #게임 보유자순 상위 1000개의 게임의 세부정보를 반환합니다.
     #게임이 아닌 소프트웨어는 자동으로 순위에서 배제됩니다.
