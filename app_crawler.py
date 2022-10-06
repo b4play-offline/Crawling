@@ -3,7 +3,7 @@ import requests
 import json
 import datetime
 from bs4 import BeautifulSoup
-#import time
+import logging
 
 #Steam store game infos by Steamspy API
 #Check param infos in https://steamspy.com/api.php 
@@ -94,6 +94,7 @@ def get_appinfo(params:dict = {"request":"all"})->pd.DataFrame:
     
     #게임 보유자순 상위 1000개의 게임의 세부정보를 반환합니다.
     #게임이 아닌 소프트웨어는 자동으로 순위에서 배제됩니다.
+    logger = logging.getLogger("all_file")
     
     app_dict = []
     app_df = []
@@ -104,13 +105,16 @@ def get_appinfo(params:dict = {"request":"all"})->pd.DataFrame:
     try:
         blacklist_df = pd.read_csv("games_list_passed.csv")
         blacklist = blacklist_df["appid"]
-    except:
-        print("info: Blacklist not found")
+    except FileNotFoundError:
+        logger.info("Blacklist not found, making new blacklist")
         
     #get Ranking by owner top 2000 games
     for i in range(2):
         params["page"]=f'{i}'
         res = requests.get("https://steamspy.com/api.php", params).text
+        if res=="":
+            logger.error("Steamspy API not working: try after 12PM")
+            return 0
         res = json.loads(res)
         app_dict += res.values()
         

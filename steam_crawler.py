@@ -105,17 +105,8 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"{int(dateti
       none(save review and summary as filename.csv)
       check collected columns info at https://partner.steamgames.com/doc/store/getreviews  
   '''
-  logger = logging.getLogger("Steam_file")
-  printer = logging.getLogger("Steam_console")
-  formatter = logging.Formatter('[%(asctime)s][%(levelname)s|%(funcname)s:%(lineno)s] >> %(message)s')
-  
-  filehandler = logging.FileHandler(f"./{datetime.now().strftime('%y-%m-%d')}_Steamlog")
-  streamhandler = logging.StreamHandler()
-  filehandler.setFormatter(formatter)
-
-  logger.addHandler(filehandler)
-  printer.addHandler(streamhandler)
-  printer.propagate=False
+  logger = logging.getLogger("all_file")
+  printer = logging.getLogger("all_console")
   
   summaries = []
   for app in app_dict.keys():    #crwal all game in list
