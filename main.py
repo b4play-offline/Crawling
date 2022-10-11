@@ -32,17 +32,13 @@ def get_game_list(renew = False):
     printer = logging.getLogger("all_console")
     
     if not renew:
-        if os.path.isfile("./games_list.csv"):
-            game_list = pd.read_csv("games_list.csv")
-            return game_list
-        else:
-            logger.warning("Mode set to load but gamelist not found")
-        
-    game_list = get_appinfo()
-    if not game_list:
-        logger.critical("Game list loading failed")
-        printer.critical("Can't creating game list, try after 12 PM.")
-        return 0
+        game_list = pd.read_csv("games_list.csv")
+    else:
+        game_list = get_appinfo()
+        if not game_list:
+            logger.critical("Game list loading failed")
+            printer.critical("Can't creating game list, try after 12 PM.")
+            return 0
     return game_list
     
 
@@ -53,7 +49,11 @@ def main():
     #new-game check
     
     set_logger()
+    logger = logging.getLogger("all_file")
+    printer = logging.getLogger("all_console")
     
+    if os.path.isfile("./games_list.csv"):
+        pass
     #printer = logging.getLogger("all_console")
     renew = input("renew game list?(y/n): ")
     if renew=="y":renew=True
@@ -65,7 +65,17 @@ def main():
     for k in game_list["appid"].values:
         game_dict[k] = game_list[game_list["appid"]==k]["name"].values[0]
     
+    #1, get new game
+    #2, get recent date
+    #3, save new reviews as file
+    #4, combind...how?
+    #4-1, make 90-day cashe to update like count
     
+    #5, calc scraping amount
+    #5, ping server to scrap
+    #5, get finish massege from server
+    
+    #6, combind in local
     
     
     get_steam_rev(game_dict, 0) 
