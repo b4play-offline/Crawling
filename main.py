@@ -124,7 +124,6 @@ def main():
     get_steam_rev(newgamedict, 0)
     get_steam_rev(gamedict, get_last_date(logs)) 
     
-
     #3, save new reviews as file
     #4, combind...how?
     #4-1, make 90-day cashe to update like count
