@@ -9,6 +9,9 @@ import logging
 from datetime import datetime
 
 def set_logger():
+    '''
+    Setting log files.
+    '''
     logger = logging.getLogger("all_file")
     printer = logging.getLogger("all_console")
     
@@ -27,46 +30,101 @@ def set_logger():
     logger.setLevel("DEBUG")
     printer.setLevel("DEBUG")
 
-def get_game_list(renew = False):
+def get_gamelist(renew = True): 
+    '''
+    Returns list of Steam games top owner 1000.
+    In:
+        renew: if True, Returns updated game list.
+    Out:
+        gamelist_old: dict of pre-crawled games' id and name.
+        gamelist_new: dict of newly chart-in games' id and name. 
+    '''
     logger = logging.getLogger("all_file")
     printer = logging.getLogger("all_console")
     
-    if not renew:
-        game_list = pd.read_csv("games_list.csv")
+    if renew=="keep":
+        gamelist = pd.read_csv("games_list.csv")
+        gamelist_old = list(gamelist.appid.values)
+        gamelist_new = [] 
     else:
-        game_list = get_appinfo()
-        if not game_list:
+        gamelist, gamelist_passed = get_appinfo()
+        
+        if not gamelist:
             logger.critical("Game list loading failed")
             printer.critical("Can't creating game list, try after 12 PM.")
             return 0
-    return game_list
+        
+        if renew=="new":
+            gamelist_new = list(gamelist.appid.values)
+            gamelist_old = []
+        elif renew=="renew":
+            pre_li = pd.read_csv("games_list.csv").appid.values
+            gamelist_new = [app for app in gamelist.appid.values if app not in pre_li]
+            gamelist_old = [app for app in gamelist.appid.values if app not in gamelist_new]
+        else:
+            logger.warning("Got unexpected arg in this func. return empty list")
+            gamelist_new = []
+            gamelist_old = []
+        
+        gamelist.to_csv("games_list.csv", index=False)
+        gamelist_passed.to_csv("games_list_passed.csv", index=False)    
+        
+    return get_game_dict(gamelist_old, gamelist), get_game_dict(gamelist_new, gamelist)
     
+def get_game_dict(game_li, game_df):
+    '''
+    make dict of game id and name.
+    In:
+        game_li: list of game id.
+        game_df: dict of original game list.
+    Out:
+        game_dict: id as key, name as value
+    '''
+    game_dict = {}
+    for k in game_li:
+        game_dict[k] = game_df[game_df["appid"]==k]["name"].values[0]
+    return game_dict
 
-def main():
-    #mode = all or new
-    #renew list = true for false
-    
-    #new-game check
-    
-    set_logger()
+def get_last_date(log_list):
+    '''
+    return recent Crawled date refer to log.
+    In:
+        log_list: list of file names in log dir.
+    Out:
+        last_date: tiemstamp of last Crawling code activated.
+    '''
     logger = logging.getLogger("all_file")
     printer = logging.getLogger("all_console")
-    
+    last_date = 0
+    for i in range(len(log_list)-1,-1,-1):
+        try:
+            last_date = datetime.strptime(log_list[i], "%y-%m-%d_Steamlog").timestamp()
+            break
+        except: pass
+    if last_date:
+        logger.info(f"Crawling starts at {last_date}")
+    else: 
+        logger.warning("last log not found: crawling entire date")
+    return last_date
+
+
+def main():
+    set_logger()
     if os.path.isfile("./games_list.csv"):
-        pass
-    #printer = logging.getLogger("all_console")
-    renew = input("renew game list?(y/n): ")
-    if renew=="y":renew=True
-    else:renew=False
+        if input("renew game list?(y/n): ")=="y":renew="renew"
+        else:renew="keep"
+    else:
+        print("First launch detected. making game list...")
+        renew="new"        
+    gamedict, newgamedict = get_gamelist(renew)
     
-    game_list = get_game_list(renew)
+    logs = os.listdir("./log")
     
-    game_dict = {}
-    for k in game_list["appid"].values:
-        game_dict[k] = game_list[game_list["appid"]==k]["name"].values[0]
     
-    #1, get new game
-    #2, get recent date
+    get_steam_rev(newgamedict, 0)
+    get_steam_rev(gamedict, get_last_date(logs)) 
+    
+
     #3, save new reviews as file
     #4, combind...how?
     #4-1, make 90-day cashe to update like count
@@ -78,10 +136,9 @@ def main():
     #6, combind in local
     
     
-    get_steam_rev(game_dict, 0) 
      
     #try:
-    #    with open ("./splited_game_list.json","r")as f:
+    #    with open ("./splited_gamelist.json","r")as f:
     #        game_dict = json.load(f)
     #        game_dict = json.loads(game_dict)[3]
     #        game_dict = dict(list(game_dict.items())[20:27])
@@ -90,7 +147,7 @@ def main():
 
     
     
-    #each_game_list = split_applist(game_df["appid"])
+    #each_gamelist = split_applist(game_df["appid"])
     
 if __name__=="__main__":
     main()

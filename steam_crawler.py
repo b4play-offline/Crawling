@@ -93,7 +93,7 @@ def get_query(url:str, params:dict, is_end:bool=False):
   res['success'] = False
   return res
 
-def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"{int(datetime.now().timestamp())}_Steamrev")->tuple[pd.DataFrame, pd.DataFrame]:
+def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"{datetime.now().strftime('%y-%m-%d')}_Steamrev"):
   '''
   Collect Steam reviews by using steamapi. 10m rev per day, 1.2m rev per hour(0.5 query/s)
   
