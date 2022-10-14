@@ -2,6 +2,11 @@ import pandas as pd
 import requests
 import json
 import datetime
+from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.action_chains import ActionChains
 from bs4 import BeautifulSoup
 import logging
 
@@ -14,18 +19,24 @@ def get_recent_revdate(id:int)->int:
     '''
 
     url = f"https://store.steampowered.com/appreviews/{id}?json=1"
-    params = {"filter":"recent",
-          "language":"english",
-          "cursor":"*",
-          "review_type":"all",
-          "purchase_type":"all",
-          "num_per_page":"20" # 100?
-        }
-    res = requests.get(url, params=params)
-    res.encoding = 'utf-8-sig'
-    res = json.loads(res.text) 
+    opts = webdriver.ChromeOptions()
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=opts)
 
-    diff = datetime.datetime.now().timestamp() - res["reviews"][-1]['timestamp_created']
+    driver.get(f"https://store.steampowered.com/app/{282070}")
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    driver.implicitly_wait(10)
+    m = driver.find_element(by=By.ID, value="user_reviews_offtopic_activity_menu")
+    ActionChains(driver, 3).move_to_element(m).perform()
+    driver.find_element(by=By.ID, value="reviews_offtopic_activity_checkbox").click()
+    date = driver.find_element(by = By.CLASS_NAME, value="shortcol").find_element(by = By.CLASS_NAME, value="postedDate").text
+
+    try:
+        date = datetime.strptime(date, "POSTED: %d %B, %Y")
+    except ValueError:
+        date = datetime.strptime(date+f", {datetime.now().year}", "POSTED: %d %B, %Y") 
+    except:
+        1/0
+    diff = datetime.datetime.now().timestamp() - date.timestamp()    
     return diff
 
 
@@ -46,11 +57,10 @@ def is_valid(app:dict):
     url = f"https://store.steampowered.com/app/{app['appid']}/?l=english"
     html = requests.get(url).text
     soup = BeautifulSoup(html, 'html.parser')
-
     app["tags"] = [r.text.strip() for r in soup.find_all(class_='app_tag')][:-1]
     if "Software" in app["tags"]:
             app["why_banned"] = "Not game"
-            return False, app
+            return True, app
 
     #eng-review counts(if needs)
     counts_rv_eng = soup.find_all(class_="user_reviews_count")[-1].text
@@ -60,34 +70,35 @@ def is_valid(app:dict):
     app["counts_rv_eng"] = int(counts_rv_eng)
     if app["counts_rv_eng"]<2500:
         app["why_banned"] = "Lack of eng reviews"
-        return False, app
+        return True, app
 
     #get peak players in steamcharts.com
     url = f"https://steamcharts.com/app/{app['appid']}/"
     html = requests.get(url).text
     soup = BeautifulSoup(html, 'html.parser')
-    
     try:
         app["all_time_peak"] = int(soup.find_all("span", class_="num")[2].text)
     except: #may net error but usually region lock
-        return False, app
+        app["why_banned"] = "(Maybe)Region lock"
+        return True, app
     
     #f2p multiplayer game/low 24 peeks may means that game is no longer to can play nomally 
     app["24h_peak"] = int(soup.find_all("span", class_="num")[1].text)
     if app["24h_peak"]<30:
         app["why_banned"] = "Too low players"
-        return False, app
+        return True, app
     elif "Free to Play" in app["tags"] and "Multiplayer" in app["tags"] and app["24h_peak"]<300:
         app["why_banned"] = "PvP no longer works"
-        return False, app
+        return True, app
     
-    #stats of constantly played: is there any recent reviews?
+    ## issue: hidden reviews by Steam not appares in recent reviews
+    
+    #stats of constantly played: is there any recent reviews? 
     if get_recent_revdate(app["appid"]) > 2592000:
         app["why_banned"] = "Recent review too old"
-        return False, app
-    
-    
-    return True, app
+        return True, app
+
+    return False, app
 
     
 
