@@ -86,6 +86,7 @@ def is_valid(app:dict):
         app["why_banned"] = "Recent review too old"
         return False, app
     
+    
     return True, app
 
     
@@ -100,11 +101,12 @@ def get_appinfo(params:dict = {"request":"all"})->pd.DataFrame:
     app_df = []
     passed_df = []
     blocked = []
+    blacklist=[]
     blocked=0
     
     try:
         blacklist_df = pd.read_csv("games_list_passed.csv")
-        blacklist = blacklist_df["appid"]
+        blacklist = blacklist_df["appid"].to_list()
     except FileNotFoundError:
         logger.info("Blacklist not found, making new blacklist")
         

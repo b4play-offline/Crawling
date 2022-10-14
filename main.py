@@ -110,32 +110,38 @@ def get_last_date(log_list):
 
 def main():
     set_logger()
-    if os.path.isfile("./games_list.csv"):
-        if input("renew game list?(y/n): ")=="y":renew="renew"
-        else:renew="keep"
-    else:
-        print("First launch detected. making game list...")
-        renew="new"        
+    #if os.path.isfile("./games_list.csv"):
+    #    if input("renew game list?(y/n): ")=="y":renew="renew"
+    #    else:renew="keep"
+    #else:
+    #    print("First launch detected. making game list...")
+    #    renew="new"        #테스트를 위해 비활성
+    renew="keep"
     gamedict, newgamedict = get_gamelist(renew)
     
     logs = os.listdir("./log")
     
-    
-    get_steam_rev(newgamedict, 0)
-    get_steam_rev(gamedict, get_last_date(logs)) 
-    
-    #3, save new reviews as file
-    #4, combind...how?
-    #4-1, make 90-day cashe to update like count
-    
-    #5, calc scraping amount
-    #5, ping server to scrap
-    #5, get finish massege from server
-    
-    #6, combind in local
+    get_steam_rev(newgamedict[:3], 0) #현재 테스트 코드
+    #get_steam_rev(gamedict, get_last_date(logs)) #현재 테스트 코드
+
     
     
-     
+    #Todo 
+    ### 어쩌면 둘다 필요없음. 시간상 생략해야 할지도
+    # 1, 파일 갱신 저장 방법 생각하기
+    # 1-2, 90일 이내 리뷰만 따로 저장해놨다가 업데이트
+    
+    # 2, 손실된 파일 데이터 체크하기
+    # 2-2, 불러오기 실패하면 로그에 저장(나중에 업데이트?)
+    
+    # 서버와 연동
+    #1, 스크랩 양 예측하기-문제는 갱신의 규모는 예측하기 힘듦(비율로 예상하던지, 서버에서 자체 계산하던지, 빼던지)
+    
+    #2, 서버에 크롤링 데이터 올리고 크롤링 요청
+    #3, 서버에서 크롤링 완료 전달받고 크롤링 데이터 땡겨오기
+    #4, 필요하다면 패킷으로 분할압축저장?
+    
+   
     #try:
     #    with open ("./splited_gamelist.json","r")as f:
     #        game_dict = json.load(f)
