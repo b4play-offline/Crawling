@@ -1,6 +1,8 @@
+from os.path import isfile
 import pandas as pd
 import requests
 import json
+import os
 import time
 import logging
 from datetime import datetime
@@ -93,7 +95,53 @@ def get_query(url:str, params:dict, is_end:bool=False):
   res['success'] = False
   return res
 
-def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"{datetime.now().strftime('%y-%m-%d')}_Steamrev"):
+def get_game_rev(appid:str, stop_time:int):
+  '''
+  Get total reviews of single game. returns reviews, summary, counts as list 
+  '''
+  
+  logger = logging.getLogger("all_file")
+  printer = logging.getLogger("all_console")
+  url = f"https://store.steampowered.com/appreviews/{appid}?json=1"
+  params = {"filter":"recent",
+          "language":"english",
+          "cursor":"*",
+          "review_type":"all",
+          "purchase_type":"all",
+          "num_per_page":"100"
+        }
+  revs = []
+  n_rv = 400
+  tot_rv = 400
+   
+  while n_rv!=0:
+    try:
+      naive_endchk = bool(len(revs)>=tot_rv-200)
+      res = get_query(url, params, naive_endchk)
+      n_rv = res['query_summary']['num_reviews']
+      
+      if not res['success']: #prevent reset
+          exmsg = input("exit process and save?")
+          if exmsg == "1":n_rv=0
+      
+      if params['cursor']=='*':
+          summary =res["query_summary"] 
+          tot_rv = res["query_summary"]['total_reviews']
+            
+      revs += res['reviews'] 
+      if n_rv and res['reviews'][-1]['timestamp_created'] <stop_time : n_rv=0 #outdated
+      params['cursor'] = res['cursor']
+    
+    except ConnectionError: #if net err, handle yourself and insert any key
+      logger.critical("Network Connections Lost")
+      input("Net error: restore connections and press any key ")  
+    except BaseException as e:
+      logger.critical(f"Unknown Error {type(e)} occured: {e}")
+      printer.critical(f"{type(e)}: {e}")
+      time.sleep(3000)
+  return [revs, summary, tot_rv]
+
+def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"Steamrev"):
   '''
   Collect Steam reviews by using steamapi. 10m rev per day, 1.2m rev per hour(0.5 query/s)
   
@@ -109,58 +157,52 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"{datetime.n
   printer = logging.getLogger("all_console")
   
   summaries = []
-  for app in app_dict.keys():    #crwal all game in list
-    url = f"https://store.steampowered.com/appreviews/{app}?json=1"
-    params = {"filter":"recent",
-            "language":"english",
-            "cursor":"*",
-            "review_type":"all",
-            "purchase_type":"all",
-            "num_per_page":"100"
-          }
-    revs = []
-    n_rv = 400
-    tot_rv = 400
+  if stop_time:stop_time-=24*60*60*90
+  pd.DataFrame().to_csv(f"{filename}_temp")
+  first_base=1
+  first_early=1
+  
+  for app in app_dict.keys():       
+    app_res = get_game_rev(app, stop_time)
+    isum = {"app_id":app, "name":app_dict[app]}
+    isum.update(app_res[1]) 
+    summaries += [isum]
+          
+     
+    rev_df = pd.DataFrame(app_res[0])
+    rev_df = rev_df[rev_df.timestamp_created>=stop_time] #kill outdated
     
-    while n_rv!=0:
-      try:
-        naive_endchk = bool(len(revs)>=tot_rv-200)
-        res = get_query(url, params, naive_endchk)
-        n_rv = res['query_summary']['num_reviews']
-        
-        if not res['success']: #prevent reset
-            exmsg = input("exit process and save?")
-            if exmsg == "1":n_rv=0
-        
-        if params['cursor']=='*': 
-            isum = {"app_id":app, "name":app_dict[app]}
-            isum.update(res['query_summary']) 
-            summaries += [isum]
-            tot_rv = res["query_summary"]['total_reviews']
-              
-        revs += res['reviews'] 
-        if n_rv and res['reviews'][-1]['timestamp_created'] <stop_time : n_rv=0 #outdated
-        params['cursor'] = res['cursor']
-      
-      except ConnectionError: #if net err, handle yourself and insert any key
-        logger.critical("Network Connections Lost")
-        input("Net error: restore connections and press any key ")  
-      except BaseException as e:
-        logger.critical(f"Unknown Error {type(e)} occured: {e}")
-        printer.critical(f"{type(e)}: {e}")
-        time.sleep(3000)
-    if len(revs):  
-      rev_df = pd.DataFrame(revs)
-      rev_df = rev_df[rev_df.timestamp_created>=stop_time] #kill outdated
-      
-      rev_df.insert(0, "appid", app) 
-      rev_df.insert(1, "name", app_dict[app]) 
-      rev_df.to_csv(f"{filename}.csv",index=False,mode='a')
-      
-      logger.info(f"APP {app} Done, {len(revs)} of {tot_rv} loaded.")
-      printer.info(f"APP {app} Done, {len(revs)} of {tot_rv} loaded.")
-       
+    rev_df.insert(0, "appid", app) 
+    rev_df.insert(1, "name", app_dict[app]) 
+    
+    today_tstamp = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    
+    rev_df_early = rev_df[rev_df.timestamp_created >= today_tstamp - 60*60*24*9] #early 90d revs
+    rev_df = rev_df[rev_df.timestamp_created<today_tstamp - 60*60*24*9]
+    
+    
+    #csv append code  
+    if first_early:
+      if len(rev_df_early):
+        rev_df_early.to_csv(f"{filename}_temp.csv", index=False, mode='a')
+        first_early=0
+    else:
+      rev_df_early.to_csv(f"{filename}_temp.csv", index=False, mode='a', header=False)
+
+    if first_base:
+      if len(rev_df_early):
+        if not os.path.isfile(f"./{filename}_base.csv"):
+          rev_df.to_csv(f"{filename}_base.csv",index=False,mode='a')
+          first_base=0
+        else:first_base=0
+    else:
+      rev_df.to_csv(f"{filename}_base.csv",index=False,mode='a', header=False)
+    
+    logger.info(f"APP {app} Done, {len(app_res[0])} of {app_res[2]} loaded.")
+    printer.info(f"APP {app} Done, {len(app_res[0])} of {app_res[2]} loaded.")
+         
   summaries_df = pd.DataFrame(summaries)
-  summaries_df.to_csv(f"{filename}_summary.csv",index=False,mode='a')
+  summaries_df.to_csv(f"{filename}_summary.csv",index=False)
   logger.info("Scrapping Compleated")
   return True #임시, 로그파일 반환? 
+
