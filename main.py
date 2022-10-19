@@ -108,7 +108,37 @@ def get_last_date(log_list):
         logger.warning("last log not found: crawling entire date")
     return last_date
 
+def push_to_server(data:list):
+    with open("./query.json", "w", encoding="utf-8") as f:
+        json.dump(data,f,ensure_ascii=False)
+    
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect('43.201.27.201', port='22', username='ec2-user', password='', key_filename='C:/Users/Ion/.ssh/team19-key.pem')
 
+    sftp = ssh.open_sftp()
+    sftp.put('./query.json', '/home/ec2-user/Crawling/query.json')
+    
+    ssh.exec_command('nohup python3 /home/ec2-user/Crawling/steam_crawler.py')
+    ssh.close()
+    
+def check_status():
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect('43.201.27.201', port='22', username='ec2-user', password='', key_filename='C:/Users/Ion/.ssh/team19-key.pem')
+    
+    sftp = ssh.open_sftp()
+    sftp.put('/home/ec2-user/Crawling/Steamrev_base.csv', './Steamrev_base_1.csv')
+
+def pull_from_server():
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect('43.201.27.201', port='22', username='ec2-user', password='', key_filename='C:/Users/Ion/.ssh/team19-key.pem')
+    
+    sftp = ssh.open_sftp()
+    sftp.put('/home/ec2-user/Crawling/Steamrev_base.csv', './Steamrev_base_1.csv')
+    
+    
 def main():
     set_logger()
     #if os.path.isfile("./games_list.csv"):
@@ -122,17 +152,22 @@ def main():
     
     logs = os.listdir("./log")
     
-    get_steam_rev(dict(list(gamedict.items())[-3:]), 0) #현재 테스트 코드
-    get_steam_rev(gamedict, get_last_date(logs)) #현재 테스트 코드
-    
-    
-    
-    
-    
+    mode = "local"
+    if mode=="local":
+        get_steam_rev(dict(list(gamedict.items())[-3:]), 0) #현재 테스트 코드
+    #    get_steam_rev(gamedict, get_last_date(logs)) #현재 테스트 코드
+    if mode=="ssh":
+        
+        push_to_server([dict(list(gamedict.items())[-3:]), 0])
+
     
 
     
     #Todo
+    
+    #
+    
+    
     # 2, 손실된 파일 데이터 체크하기
     # 2-2, 불러오기 실패하면 로그에 저장(나중에 업데이트?)
     # 서버와 연동
@@ -140,6 +175,15 @@ def main():
     
     #1, 어느 서버를 쓸 것인지 설정
     #서버에 코드 업로드
+    
+    #모드: 로컬에서 돌리기
+    # - 90일 이내 갱신인 경우
+    # - 예정 크롤링 리스트가 하나인 경우
+
+    #모드 2: 타 서버 여러개에서 돌리기
+    # - 크롤링 예정 리스트를 쿼리로 만들어서 서버에 올리기
+    # - 서버 갯수가 부족한 경우 2일에 나누어서 돌려야 함
+    
     #3, 다중 크롤링 요청. 그리고 완료 전달받기
     #4, 다 긁어와서 하나로 합치기
     #5, 완성본으로 합치고, 완료 메시지

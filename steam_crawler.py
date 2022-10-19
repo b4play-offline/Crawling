@@ -1,4 +1,3 @@
-from os.path import isfile
 import pandas as pd
 import requests
 import json
@@ -158,7 +157,6 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"Steamrev"):
   
   summaries = []
   if stop_time:stop_time-=24*60*60*90
-  pd.DataFrame().to_csv(f"{filename}_temp")
   first_base=1
   first_early=1
   
@@ -205,4 +203,9 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"Steamrev"):
   summaries_df.to_csv(f"{filename}_summary.csv",index=False)
   logger.info("Scrapping Compleated")
   return True #임시, 로그파일 반환? 
+
+if __name__=="__main__":
+  with open("./query.json", "r", encoding="utf-8")as f:
+    inp = json.load(f)
+  get_steam_rev(inp[0],inp[1])
 
