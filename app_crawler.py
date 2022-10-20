@@ -164,7 +164,3 @@ if __name__=="__main__":
     passed_list.to_csv("games_list_passed.csv", index=False)
     
     
-    
-#1, 반복 많이 되면 
-#2, 읽기 힘들게 길어지면
-#3, 서로 다른 작업을 한다면
