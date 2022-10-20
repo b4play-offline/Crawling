@@ -13,7 +13,7 @@ def set_logger():
     
     if not os.path.isdir("./log"):
         os.makedirs("./log")
-    if not os.path.isdir("./sshcashe"):
+    if not os.path.isdir("./sshcache"):
         os.makedirs("./sshcashe")        
     filehandler = logging.FileHandler(f"./log/{datetime.now().strftime('%y-%m-%d')}_Steamlog")
     streamhandler = logging.StreamHandler()

@@ -42,7 +42,7 @@ def split_applist(app_dict:dict)->dict:
   
   rv_lim = 0
   sum_list = [] 
-  splited_list = []  
+  splited_dict = {}  
   
   for k, v in app_dict.items():
     url = f"https://store.steampowered.com/appreviews/{k}?json=1"
@@ -61,15 +61,15 @@ def split_applist(app_dict:dict)->dict:
     tot_rv = (tot_rv//100)+int(bool(tot_rv))
     
     if rv_lim+tot_rv>99499: #500 = margin
-      sum_list.append(splited_list)
-      splited_list = []
+      sum_list.append(splited_dict)
+      splited_dict = {}
       rv_lim = tot_rv
     
     rv_lim+=tot_rv
-    splited_list.append({k:v})
+    splited_dict[f"{k}"]=v
     
-  if len(splited_list):
-    sum_list.append(splited_list)
+  if len(splited_dict):
+    sum_list.append(splited_dict)
       
   return sum_list
 
@@ -220,12 +220,12 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"Steamrev"):
          
   summaries_df = pd.DataFrame(summaries)
   summaries_df.to_csv(f"{filename}_summary.csv",index=False)
-  logger.info("Scrapping Compleated")
+  logger.info("Scrapping Compleated (code 200)")
   return True #임시, 로그파일 반환? 
 
 if __name__=="__main__":
   set_logger_aws()
   with open("./query.json", "r", encoding="utf-8")as f:
-    inp = json.load(f)
+    inp = json.loads(json.load(f))
   get_steam_rev(inp[0],inp[1])
 
