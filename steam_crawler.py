@@ -6,7 +6,27 @@ import time
 import logging
 from datetime import datetime
 
+def set_logger_aws():
+    '''
+    Setting log files.
+    '''
+    logger = logging.getLogger("all_file")
+    printer = logging.getLogger("all_console")
+    
+    formatter = logging.Formatter('[%(asctime)s][%(levelname)s|%(funcName)s:%(lineno)s] >> %(message)s')
+    
+    if not os.path.isdir("./log"):
+        os.makedirs("./log")        
+    filehandler = logging.FileHandler(f"./log/{datetime.now().strftime('%y-%m-%d')}_Steamlog")
+    streamhandler = logging.StreamHandler()
+    filehandler.setFormatter(formatter)
 
+    logger.addHandler(filehandler)
+    printer.addHandler(streamhandler)
+    printer.propagate=False
+
+    logger.setLevel("DEBUG")
+    printer.setLevel("DEBUG")
 
 def split_applist(app_dict:dict)->dict:
   '''
@@ -178,23 +198,22 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"Steamrev"):
     rev_df_early = rev_df[rev_df.timestamp_created >= today_tstamp - 60*60*24*9] #early 90d revs
     rev_df = rev_df[rev_df.timestamp_created<today_tstamp - 60*60*24*9]
     
-    
     #csv append code  
-    if first_early:
-      if len(rev_df_early):
+    if first_early and len(rev_df_early):
+      if not os.path.isfile(f"./{filename}_temp.csv"):
         rev_df_early.to_csv(f"{filename}_temp.csv", index=False, mode='a')
-        first_early=0
+      first_early=0
     else:
-      rev_df_early.to_csv(f"{filename}_temp.csv", index=False, mode='a', header=False)
-
-    if first_base:
-      if len(rev_df_early):
+      rev_df.to_csv(f"{filename}_temp.csv",index=False,mode='a', header=False)
+      
+      
+    if first_base and len(rev_df_early):
         if not os.path.isfile(f"./{filename}_base.csv"):
           rev_df.to_csv(f"{filename}_base.csv",index=False,mode='a')
-          first_base=0
-        else:first_base=0
+        first_base=0
     else:
       rev_df.to_csv(f"{filename}_base.csv",index=False,mode='a', header=False)
+    
     
     logger.info(f"APP {app} Done, {len(app_res[0])} of {app_res[2]} loaded.")
     printer.info(f"APP {app} Done, {len(app_res[0])} of {app_res[2]} loaded.")
@@ -205,6 +224,7 @@ def get_steam_rev(app_dict:dict, stop_time:int = 0, filename:str = f"Steamrev"):
   return True #임시, 로그파일 반환? 
 
 if __name__=="__main__":
+  set_logger_aws()
   with open("./query.json", "r", encoding="utf-8")as f:
     inp = json.load(f)
   get_steam_rev(inp[0],inp[1])
