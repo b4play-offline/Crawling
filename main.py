@@ -1,6 +1,4 @@
-import time 
 import pandas as pd
-
 import json
 import localfuncs as lf
 import sshfuncs 
@@ -9,7 +7,6 @@ from steam_crawler import split_applist
 from app_crawler import get_appinfo
 import os
 import logging
-import paramiko
 import threading
 
 def get_gamelist(renew = True): 
@@ -52,6 +49,10 @@ def get_gamelist(renew = True):
         gamelist_passed.to_csv("games_list_passed.csv", index=False)    
         
     return lf.get_game_dict(gamelist_old, gamelist), lf.get_game_dict(gamelist_new, gamelist)
+
+class Crawlmanager():
+    def __init__(self):
+        pass
 
 def main():
     lf.set_logger()
@@ -106,13 +107,15 @@ def main():
             t.join()
             
         #combind separeted datas
-        filename = ["Steamrev_temp.csv", "Steamrev_base.csv", "Steamrev_summary.csv", f"{os.listdir('./log')[-1]}"]
-        for f in filename:
-            for i in range(len(newgamedict)):
-                with open(f, "a", encoding="utf-8")as f1: 
-                    with open(f"{f}_{i}.csv", "r", encoding="utf-8")as f2:
-                        f1.write("\n")
-                        f1.write(f2.read())
+        filename = ["Steamrev_temp", "Steamrev_base", "Steamrev_summary"]
+        for i in range(len(newgamedict)):
+            for j in range(len(filename)):
+                lf.merge(f"{filename[j]}",f"./sshcache/{filename[j]}_{i}", ".csv") #datas
+            lf.merge(f"{os.listdir('./log')[-1]}",f"{os.listdir('./log')[-1]}_{i}","") #log
+        
+        for f in os.listdir("./sshcache"):
+            os.remove(f)
+            
     else:
         get_steam_rev(newgamedict, 0) 
         get_steam_rev(gamedict, lastdate) #갱신 오래됐을 경우?

@@ -61,3 +61,11 @@ def get_last_date(log_list:list = os.listdir("./log")):
     else: 
         logger.warning("last log not found: crawling entire date")
     return last_date
+
+
+def merge(origin, cache, ftype):
+    with open(origin+ftype, "a", encoding="utf-8")as f1: 
+        with open(cache+ftype, "r", encoding="utf-8")as f2:
+            f1.write("\n")
+            f1.write(f2.read())
+
